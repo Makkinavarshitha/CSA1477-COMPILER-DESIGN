@@ -1,0 +1,157 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+
+#define MAX_IDENTIFIER_LEN 50
+#define MAX_NUM_LEN 10
+
+// Token types
+typedef enum {
+    TOKEN_IDENTIFIER,
+    TOKEN_CONSTANT,
+    TOKEN_OPERATOR,
+    TOKEN_UNKNOWN
+} TokenType;
+
+// Structure to hold a token
+typedef struct {
+    TokenType type;
+    char value[MAX_IDENTIFIER_LEN + 1]; // Assuming identifiers and constants are within this limit
+} Token;
+
+// Function declarations
+Token getNextToken(FILE *fp);
+void skipWhitespaceAndComments(FILE *fp);
+
+int main() {
+    FILE *fp;
+    Token token;
+
+    // Open the input file (assuming 'input.txt' as the source code file)
+    fp = fopen("input.txt", "r");
+    if (fp == NULL) {
+        perror("Error opening file");
+        return EXIT_FAILURE;
+    }
+
+    // Get tokens until end of file
+    do {
+        token = getNextToken(fp);
+
+        // Print token details
+        switch (token.type) {
+            case TOKEN_IDENTIFIER:
+                printf("Identifier: %s\n", token.value);
+                break;
+            case TOKEN_CONSTANT:
+                printf("Constant: %s\n", token.value);
+                break;
+            case TOKEN_OPERATOR:
+                printf("Operator: %s\n", token.value);
+                break;
+            case TOKEN_UNKNOWN:
+                printf("Unknown token: %s\n", token.value);
+                break;
+        }
+    } while (token.type != TOKEN_UNKNOWN && token.type != TOKEN_EOF);
+
+    // Close the file
+    fclose(fp);
+
+    return EXIT_SUCCESS;
+}
+
+// Function to skip whitespace and comments
+void skipWhitespaceAndComments(FILE *fp) {
+    int ch;
+
+    // Read characters until a non-space, non-tab, non-newline character is found
+    while ((ch = fgetc(fp)) != EOF) {
+        if (isspace(ch)) {
+            continue; // Skip whitespace
+        } else if (ch == '/') {
+            // Check for comment
+            ch = fgetc(fp);
+            if (ch == '/') {
+                // Single-line comment
+                while ((ch = fgetc(fp)) != EOF && ch != '\n') {
+                    // Skip until end of line
+                }
+            } else if (ch == '*') {
+                // Multi-line comment
+                int prev_ch = ' ';
+                while ((ch = fgetc(fp)) != EOF) {
+                    if (prev_ch == '*' && ch == '/') {
+                        break; // End of multi-line comment
+                    }
+                    prev_ch = ch;
+                }
+            } else {
+                // Not a comment, push back the character
+                ungetc(ch, fp);
+                return;
+            }
+        } else {
+            // Not a space or comment, push back the character
+            ungetc(ch, fp);
+            return;
+        }
+    }
+}
+
+// Function to get the next token
+Token getNextToken(FILE *fp) {
+    Token token;
+    int ch;
+    int i = 0;
+
+   
+    skipWhitespaceAndComments(fp);
+
+    token.value[0] = '\0';
+
+ 
+    ch = fgetc(fp);
+    if (ch == EOF) {
+        token.type = TOKEN_EOF;
+        return token;
+    }
+
+    
+    if (isalpha(ch) || ch == '_') {
+        token.type = TOKEN_IDENTIFIER;
+        while (i < MAX_IDENTIFIER_LEN && (isalnum(ch) || ch == '_')) {
+            token.value[i++] = ch;
+            ch = fgetc(fp);
+        }
+        token.value[i] = '\0';
+        ungetc(ch, fp); // Push back the last character read
+        return token;
+    }
+
+    if (isdigit(ch)) {
+        token.type = TOKEN_CONSTANT;
+        while (i < MAX_NUM_LEN && isdigit(ch)) {
+            token.value[i++] = ch;
+            ch = fgetc(fp);
+        }
+        token.value[i] = '\0';
+        ungetc(ch, fp); // Push back the last character read
+        return token;
+    }
+
+    
+    if (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '=' || ch == '<' || ch == '>') {
+        token.type = TOKEN_OPERATOR;
+        token.value[0] = ch;
+        token.value[1] = '\0';
+        return token;
+    }
+
+    
+    token.type = TOKEN_UNKNOWN;
+    token.value[0] = ch;
+    token.value[1] = '\0';
+    return token;
+}
